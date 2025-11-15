@@ -6,13 +6,13 @@ services:
     image: mysql:8.0
     container_name: mysql_container
     environment:
-      MYSQL_ROOT_PASSWORD: 123
-      MYSQL_DATABASE: discharge
-      MYSQL_USER: user
-      MYSQL_PASSWORD: 123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     restart: always
     healthcheck:
-      test: mysql -u root -p123 -h 127.0.0.1 -e 'SHOW DATABASES;'
+      test: mysql -u root -p$${MYSQL_ROOT_PASSWORD} -h 127.0.0.1 -e 'SHOW DATABASES;'
       interval: 10s
       timeout: 5s
       retries: 5
@@ -29,9 +29,9 @@ services:
     container_name: java_container
     environment:
       # Acesso ao Container DB
-      DB_URL: jdbc:mysql://db/discharge
-      DB_USER: root
-      DB_PASSWORD: 123
+      DB_URL: jdbc:mysql://db/${MYSQL_DATABASE}
+      DB_USER: ${BACKEND_DB_USER}
+      DB_PASSWORD: ${BACKEND_DB_PASSWORD}
       # Acesso ao S3
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
@@ -48,16 +48,16 @@ services:
     image: zapss/discharge-nodejs:latest
     container_name: node_container
     environment:
-      AMBIENTE_PROCESSO: desenvolvimento
-      DB_HOST: db
-      DB_DATABASE: discharge
-      DB_USER: user
-      DB_PASSWORD: 123
-      DB_PORT: 3306
-      APP_PORT: 80
-      APP_HOST: localhost
-      MEU_EMAIL: atendimentohighfive@gmail.com
-      MINHA_SENHA: upcyjphafxzzoslh
+      AMBIENTE_PROCESSO: ${AMBIENTE_PROCESSO}
+      DB_HOST: ${FRONTEND_DB_HOST}
+      DB_DATABASE: ${FRONTEND_DB_DATABASE}
+      DB_USER: ${FRONTEND_DB_USER}
+      DB_PASSWORD: ${FRONTEND_DB_PASSWORD}
+      DB_PORT: ${FRONTEND_DB_PORT}
+      APP_PORT: ${APP_PORT}
+      APP_HOST: ${APP_HOST}
+      MEU_EMAIL: ${MEU_EMAIL}
+      MINHA_SENHA: ${MINHA_SENHA}
     restart: always
     ports:
       - "80:80"
