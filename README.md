@@ -24,12 +24,13 @@ Este repositório contém as configurações para implantar a infraestrutura uti
 ## Estrutura do Repositório
 
 ```
-├── dockerfiles
+├── docker
 |   └── backend
 |       └── Dockerfile
 |   └── frontend
 |       └── Dockerfile
 ├── docker-compose.yml
+├── .env.example
 ├── init.sql
 ├── install.sh
 ├── main.yaml
@@ -75,35 +76,70 @@ EXPOSE 3333
 
 ## Configuração do Docker Compose
 
-O Docker compose está sendo utilizado para criação de 3 containers
+O Docker compose está sendo utilizado para criação de 3 containers.
+
+### Configuração de Variáveis de Ambiente
+
+Antes de executar o Docker Compose, é necessário configurar as variáveis de ambiente:
+
+1. Copie o arquivo `.env.example` para `.env`:
+```bash
+cp .env.example .env
+```
+
+2. Preencha o arquivo `.env` com os valores adequados:
+```bash
+# MySQL Database Configuration
+MYSQL_ROOT_PASSWORD=sua_senha_root
+MYSQL_DATABASE=discharge
+MYSQL_USER=user
+MYSQL_PASSWORD=sua_senha
+
+# Backend Database Configuration
+BACKEND_DB_USER=root
+BACKEND_DB_PASSWORD=sua_senha_root
+
+# Frontend Database Configuration
+FRONTEND_DB_HOST=db
+FRONTEND_DB_DATABASE=discharge
+FRONTEND_DB_USER=user
+FRONTEND_DB_PASSWORD=sua_senha
+FRONTEND_DB_PORT=3306
+
+# Frontend Application Configuration
+APP_PORT=80
+APP_HOST=localhost
+AMBIENTE_PROCESSO=desenvolvimento
+
+# Email Configuration
+MEU_EMAIL=seu_email@example.com
+MINHA_SENHA=sua_senha_email
+
+# AWS Configuration
+AWS_ACCESS_KEY_ID=sua_access_key
+AWS_SECRET_ACCESS_KEY=sua_secret_key
+AWS_SESSION_TOKEN=seu_session_token
+TOKEN=seu_token
+```
+
+### Containers
 
 mysql_container
 
-Criando o banco de dados a partir do arquivo init.sql (que contém o esquema do banco de dados MySQL) e o usuário que realiza as manipulações dentro do banco de dados
+Criando o banco de dados a partir do arquivo init.sql (que contém o esquema do banco de dados MySQL) e o usuário que realiza as manipulações dentro do banco de dados. As credenciais são carregadas a partir das variáveis de ambiente definidas no arquivo `.env`.
 
 ```
   db:
     image: mysql:8.0
     container_name: mysql_container
     environment:
-      MYSQL_ROOT_PASSWORD: 123
-      MYSQL_DATABASE: discharge
-      MYSQL_USER: user
-      MYSQL_PASSWORD: 123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     restart: always
     healthcheck:
-      test:
-        [
-          "CMD",
-          "mysql",
-          "-u",
-          "root",
-          "-p123",
-          "-h",
-          "127.0.0.1",
-          "-e",
-          "SHOW DATABASES;",
-        ]
+      test: mysql -u root -p$${MYSQL_ROOT_PASSWORD} -h 127.0.0.1 -e 'SHOW DATABASES;'
       interval: 10s
       timeout: 5s
       retries: 5
@@ -117,21 +153,22 @@ Criando o banco de dados a partir do arquivo init.sql (que contém o esquema do 
 
 java_container
 
-Realiza a execução da aplicação em Java, utilizando o usuário do banco de dados criado pelo mysql_container - Acessando a AWS para leitura de arquivos dentro do S3 e às inserindo no banco de dados
+Realiza a execução da aplicação em Java, utilizando o usuário do banco de dados criado pelo mysql_container - Acessando a AWS para leitura de arquivos dentro do S3 e às inserindo no banco de dados. As credenciais do banco de dados e da AWS são carregadas a partir das variáveis de ambiente definidas no arquivo `.env`.
 
 ```
   backend:
-    image: zapss/discharge-jdk:1.0
+    image: zapss/discharge-jdk:latest
     container_name: java_container
     environment:
       # Acesso ao Container DB
-      DB_URL: jdbc:mysql://db/discharge
-      DB_USER: root
-      DB_PASSWORD: 123
+      DB_URL: jdbc:mysql://db/${MYSQL_DATABASE}
+      DB_USER: ${BACKEND_DB_USER}
+      DB_PASSWORD: ${BACKEND_DB_PASSWORD}
       # Acesso ao S3
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      TOKEN: ${TOKEN}
     ports:
       - "5555:5555"
     depends_on:
@@ -141,30 +178,32 @@ Realiza a execução da aplicação em Java, utilizando o usuário do banco de d
 
 node_container
 
-Roda a aplicação Web com o NodeJS e visualiza informações vindas do banco de dados
+Roda a aplicação Web com o NodeJS e visualiza informações vindas do banco de dados. Todas as configurações de conexão ao banco, porta da aplicação e credenciais de email são carregadas a partir das variáveis de ambiente definidas no arquivo `.env`.
 
 ```
   frontend:
-    image: zapss/discharge-nodejs:1.0
+    image: zapss/discharge-nodejs:latest
     container_name: node_container
     environment:
-      AMBIENTE_PROCESSO: desenvolvimento
-      DB_HOST: db
-      DB_DATABASE: discharge
-      DB_USER: user
-      DB_PASSWORD: 123
-      DB_PORT: 3306
-      APP_PORT: 3333
-      APP_HOST: localhost
-      MEU_EMAIL: atendimentohighfive@gmail.com
-      MINHA_SENHA: upcyjphafxzzoslh
+      AMBIENTE_PROCESSO: ${AMBIENTE_PROCESSO}
+      DB_HOST: ${FRONTEND_DB_HOST}
+      DB_DATABASE: ${FRONTEND_DB_DATABASE}
+      DB_USER: ${FRONTEND_DB_USER}
+      DB_PASSWORD: ${FRONTEND_DB_PASSWORD}
+      DB_PORT: ${FRONTEND_DB_PORT}
+      APP_PORT: ${APP_PORT}
+      APP_HOST: ${APP_HOST}
+      MEU_EMAIL: ${MEU_EMAIL}
+      MINHA_SENHA: ${MINHA_SENHA}
     restart: always
     ports:
-      - "3333:3333"
+      - "80:80"
     depends_on:
       db:
         condition: service_healthy
 ```
+
+**⚠️ Importante:** O arquivo `.env` contém informações sensíveis e **não deve ser commitado** no repositório. Apenas o arquivo `.env.example` (com valores vazios) deve ser versionado. Certifique-se de que o `.env` está listado no `.gitignore`.
 
 ## Configuração do CloudFormation
 
